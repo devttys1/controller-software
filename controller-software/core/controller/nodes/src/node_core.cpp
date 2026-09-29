@@ -14,6 +14,9 @@ uint32_t Node_Core::run_update(){
     }
 
     for(auto& net : network_execution_order){
+        if(net == nullptr){ // execution orders with no network (e.g. a config with no networks at all)
+            continue;
+        }
         net->run(&cycle);
     }
 

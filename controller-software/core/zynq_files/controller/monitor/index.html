@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Encoder Monitor</title>
+<!-- Served by em_monitor.py on the controller board; self-contained so it works without internet access. -->
+<style>
+:root {
+    --bg: #f5f6f8; --panel: #ffffff; --text: #1a1e24; --muted: #5d6875; --border: #dce1e7; --grid: #edf0f3;
+    --accent: #2458d3; --good: #177245; --warn: #a15c07; --bad: #b3261e;
+    --s-speed: #2458d3; --s-pos: #7b3fd0; --s-angle: #0f7f95;
+    --h1: #c2559a; --h2: #e39b2d; --h3: #b8b12a; --h4: #3fa66a; --h5: #3a86c8; --h6: #8e5cc4;
+    color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --bg: #111418; --panel: #1a1e24; --text: #e6e9ed; --muted: #9aa5b1; --border: #2c323a; --grid: #252a31;
+        --accent: #7aa2ff; --good: #5cc98e; --warn: #f0b35a; --bad: #ff7b72;
+        --s-speed: #7aa2ff; --s-pos: #c19bff; --s-angle: #4fd1e8;
+        --h1: #e389c2; --h2: #f2b458; --h3: #d8d15a; --h4: #62c98c; --h5: #66a9e6; --h6: #b18be6;
+        color-scheme: dark;
+    }
+}
+:root[data-theme="dark"] {
+    --bg: #111418; --panel: #1a1e24; --text: #e6e9ed; --muted: #9aa5b1; --border: #2c323a; --grid: #252a31;
+    --accent: #7aa2ff; --good: #5cc98e; --warn: #f0b35a; --bad: #ff7b72;
+    --s-speed: #7aa2ff; --s-pos: #c19bff; --s-angle: #4fd1e8;
+    --h1: #e389c2; --h2: #f2b458; --h3: #d8d15a; --h4: #62c98c; --h5: #66a9e6; --h6: #b18be6;
+    color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+    padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--panel);
+    position: sticky; top: 0; z-index: 1;
+}
+h1 { font-size: 17px; margin: 0; font-weight: 600; }
+.spacer { flex: 1; }
+.pill {
+    display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+    border: 1px solid var(--border); font-size: 13px; color: var(--muted); white-space: nowrap;
+}
+.pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.pill.good { color: var(--good); } .pill.warn { color: var(--warn); } .pill.bad { color: var(--bad); }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button, select, a.button {
+    font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 10px; cursor: pointer; text-decoration: none; line-height: 1.3;
+}
+button:hover, a.button:hover { border-color: var(--accent); }
+.seg { display: inline-flex; }
+.seg button { border-radius: 0; margin-left: -1px; }
+.seg button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
+.seg button:last-child { border-radius: 0 6px 6px 0; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--panel); border-color: var(--accent); }
+main { padding: 16px; max-width: 1400px; margin: 0 auto; display: grid; gap: 16px; }
+.notice { padding: 12px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); color: var(--muted); }
+.cards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; min-width: 0; }
+.card .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.card .value { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card .value.big { font-size: 30px; }
+.card .sub { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.good-text { color: var(--good); } .warn-text { color: var(--warn); } .bad-text { color: var(--bad); }
+.row { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 900px) { .row { grid-template-columns: 340px minmax(0, 1fr); } }
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px; min-width: 0; }
+.panel h2 { font-size: 13px; margin: 0 0 8px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.dials { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+@media (min-width: 900px) { .dials { grid-template-columns: 1fr; } }
+.dial canvas { width: 100%; aspect-ratio: 1; display: block; }
+.dial .caption { text-align: center; color: var(--muted); font-size: 12px; }
+.charts { display: grid; gap: 12px; }
+.chart canvas { width: 100%; height: 170px; display: block; }
+.chart.short canvas { height: 110px; }
+details.panel summary { cursor: pointer; color: var(--muted); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; }
+pre#log { margin: 8px 0 0; max-height: 360px; overflow: auto; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-all; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+    <h1>Encoder monitor</h1>
+    <select id="ring" aria-label="Encoder" class="hidden"></select>
+    <span id="status" class="pill">Connecting</span>
+    <span class="spacer"></span>
+    <div class="controls">
+        <div class="seg" role="group" aria-label="Time window">
+            <button data-window="1">1 s</button><button data-window="5" aria-pressed="true">5 s</button><button data-window="15">15 s</button>
+        </div>
+        <button id="pause">Pause</button>
+        <a id="csv" class="button" href="#" title="Everything the controller holds for this encoder, every cycle">Download CSV</a>
+    </div>
+</header>
+
+<main>
+    <div id="notice" class="notice hidden"></div>
+
+    <section class="cards" aria-label="Current values">
+        <div class="card"><div class="label">Speed</div><div class="value big" id="v-rpm">–</div><div class="sub">rpm</div></div>
+        <div class="card"><div class="label">Position</div><div class="value" id="v-turns">–</div><div class="sub">turns since controller start</div></div>
+        <div class="card inc"><div class="label">Electrical angle</div><div class="value" id="v-elec">–</div><div class="sub" id="v-elec-sub">0° at the hall 2|3 edge</div></div>
+        <div class="card inc"><div class="label">Hall</div><div class="value" id="v-hall">–</div><div class="sub" id="v-hall-sub">W V U</div></div>
+        <div class="card inc"><div class="label">Hall reference</div><div class="value" id="v-ref">–</div><div class="sub" id="v-dev">deviation –</div></div>
+        <div class="card inc idx"><div class="label">Index</div><div class="value" id="v-idx">–</div><div class="sub" id="v-idx-sub">–</div></div>
+        <div class="card"><div class="label">Good frames</div><div class="value" id="v-good">–</div><div class="sub">over the last second</div></div>
+        <div class="card"><div class="label">Frame errors</div><div class="value" id="v-ferr">–</div><div class="sub" id="v-ferr-rate">–</div></div>
+        <div class="card"><div class="label">No responses</div><div class="value" id="v-nresp">–</div><div class="sub" id="v-nresp-rate">–</div></div>
+    </section>
+
+    <div class="row">
+        <section class="panel">
+            <h2>Rotor</h2>
+            <div class="dials">
+                <div class="dial inc"><canvas id="dial-elec" aria-label="Electrical angle dial"></canvas><div class="caption">electrical angle and hall sectors</div></div>
+                <div class="dial"><canvas id="dial-shaft" aria-label="Shaft angle dial"></canvas><div class="caption" id="shaft-caption">shaft angle since controller start</div></div>
+            </div>
+        </section>
+        <section class="charts">
+            <div class="panel chart"><h2>Speed (rpm)</h2><canvas id="c-rpm"></canvas></div>
+            <div class="panel chart"><h2>Position (turns)</h2><canvas id="c-turns"></canvas></div>
+            <div class="panel chart inc"><h2>Electrical angle (°)</h2><canvas id="c-elec"></canvas></div>
+            <div class="panel chart short inc"><h2>Hall state</h2><canvas id="c-hall"></canvas></div>
+        </section>
+    </div>
+
+    <details class="panel" id="log-panel">
+        <summary>Controller log</summary>
+        <pre id="log">…</pre>
+    </details>
+</main>
+
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const params = new URLSearchParams(location.search);
+const EVERY = Math.max(1, parseInt(params.get("every") || "1", 10));
+if (["light", "dark"].includes(params.get("theme"))) document.documentElement.dataset.theme = params.get("theme");
+const HALL_REF_NAMES = ["None", "Sector", "Locked", "Index"];
+
+let es = null;              // EventSource
+let info = null;            // schema event: ring name, fields, metadata
+let col = {};               // field name -> column index
+let store = null;
+let windowS = 5;
+let paused = false;
+let dirty = false;
+let lastStatus = null;
+
+// newest-first ring of rows, one Float64Array per field
+class Store {
+    constructor(capacity, fields) {
+        this.n = capacity;
+        this.cols = fields.map(() => new Float64Array(capacity));
+        this.head = 0;
+        this.len = 0;
+    }
+    push(row) {
+        for (let f = 0; f < row.length; f++) this.cols[f][this.head] = row[f];
+        this.head = (this.head + 1) % this.n;
+        if (this.len < this.n) this.len++;
+    }
+    get(f, age) { return this.cols[f][(this.head - 1 - age + 2 * this.n) % this.n]; }
+}
+
+function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function hallColor(h) { return css("--h" + h) || css("--muted"); }
+
+// ---- connection
+
+async function start() {
+    let rings = [];
+    try {
+        rings = await (await fetch("api/rings", { cache: "no-store" })).json();
+    } catch (e) {
+        setStatus("bad", "Monitor unreachable");
+    }
+    const sel = $("#ring");
+    if (!rings.length) {
+        showNotice("No encoder data yet. Is controller_core running? Checking again every 2 s.");
+        setTimeout(start, 2000);
+        return;
+    }
+    showNotice("");
+    sel.innerHTML = "";
+    for (const r of rings) {
+        const opt = document.createElement("option");
+        const s = r.schema;
+        opt.value = r.name;
+        opt.textContent = s.module ? `${s.module}:${s.index} (${s.mode || ""})` : r.name;
+        sel.appendChild(opt);
+    }
+    sel.classList.toggle("hidden", rings.length < 2);
+    const wanted = params.get("ring");
+    sel.value = rings.some((r) => r.name === wanted) ? wanted : rings[0].name;
+    connect(sel.value);
+}
+
+function connect(name) {
+    if (es) es.close();
+    info = null;
+    store = null;
+    $("#csv").href = "api/capture.csv?ring=" + encodeURIComponent(name);
+    es = new EventSource(`api/stream?ring=${encodeURIComponent(name)}&every=${EVERY}`);
+    es.addEventListener("schema", (e) => onSchema(JSON.parse(e.data)));
+    es.addEventListener("data", (e) => onData(JSON.parse(e.data)));
+    es.addEventListener("status", (e) => onStatus(JSON.parse(e.data)));
+    es.onerror = () => setStatus("bad", "Disconnected, retrying");
+}
+
+// how to read each field out of a raw sample (little endian, at the schema's offsets)
+const READERS = {
+    d: (v, o) => v.getFloat64(o, true),
+    Q: (v, o) => Number(v.getBigUint64(o, true)),
+    I: (v, o) => v.getUint32(o, true),
+    H: (v, o) => v.getUint16(o, true),
+    B: (v, o) => v.getUint8(o),
+};
+let decoders = [];
+
+function hasIndex() { return info && col.indexed !== undefined; }
+
+function onSchema(s) {
+    info = s;
+    col = {};
+    s.names.forEach((n, i) => { col[n] = i; });
+    const byName = Object.fromEntries(s.schema.fields.map((f) => [f.name, f]));
+    decoders = s.names.map((n) => ({ read: READERS[byName[n].type], offset: byName[n].offset }));
+    // the whole ring, at the rate being streamed
+    store = new Store(Math.ceil(s.capacity / Math.max(1, s.every)) + 16, s.names);
+    const incremental = (s.schema.mode || "").includes("incremental");
+    document.querySelectorAll(".inc").forEach((el) => el.classList.toggle("hidden", !incremental));
+    document.querySelectorAll(".idx").forEach((el) => el.classList.toggle("hidden", !incremental || col.indexed === undefined));
+    dirty = true;
+}
+
+function onData(d) {
+    if (!store || paused) return;
+    const bin = atob(d.b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const view = new DataView(bytes.buffer);
+    const row = new Array(decoders.length);
+    for (let n = 0; n < d.count; n++) {
+        const base = n * info.sample_size;
+        for (let f = 0; f < decoders.length; f++) row[f] = decoders[f].read(view, base + decoders[f].offset);
+        store.push(row);
+    }
+    dirty = true;
+}
+
+function onStatus(s) {
+    lastStatus = s;
+    if (!s.running && !s.live) setStatus("bad", "Controller stopped");
+    else if (!s.ring) setStatus("warn", "Waiting for data");
+    else if (!s.live) setStatus("warn", "No new samples");
+    else setStatus("good", paused ? "Live (paused)" : "Live");
+}
+
+function setStatus(kind, text) {
+    const el = $("#status");
+    el.className = "pill " + kind;
+    el.textContent = text;
+}
+
+function showNotice(text) {
+    const el = $("#notice");
+    el.textContent = text;
+    el.classList.toggle("hidden", !text);
+}
+
+// ---- readouts
+
+function fmt(v, digits) {
+    if (!Number.isFinite(v)) return "–";
+    return (Number(v.toFixed(digits)) || 0).toFixed(digits);   // no "-0.0"
+}
+
+
+function updateReadouts() {
+    const hz = (info.update_frequency || 1000) / Math.max(1, info.every);
+    const g = (name, age = 0) => store.get(col[name], age);
+    $("#v-rpm").textContent = fmt(g("velocity_rpm"), 1);
+    $("#v-turns").textContent = fmt(g("total_turns"), 4);
+
+    const ref = g("hall_reference");
+    const elecDeg = g("electrical_angle") * 360;
+    $("#v-elec").textContent = ref > 0 ? fmt(elecDeg, 1) + "°" : "–";
+    $("#v-elec-sub").textContent = ref === 1 ? "estimate: within ~33°" : ref === 3 ? "from the index · 0° at the hall 2|3 edge" : "0° at the hall 2|3 edge";
+
+    const hall = g("hall");
+    $("#v-hall").textContent = String(hall);
+    $("#v-hall").style.color = hall >= 1 && hall <= 6 ? hallColor(hall) : css("--bad");
+    $("#v-hall-sub").textContent = "W V U  " + [4, 2, 1].map((b) => (hall & b ? "1" : "0")).join(" ");
+
+    const refEl = $("#v-ref");
+    refEl.textContent = HALL_REF_NAMES[ref] ?? String(ref);
+    refEl.className = "value " + (ref >= 2 ? "good-text" : ref === 1 ? "warn-text" : "bad-text");
+    const dev = g("hall_deviation");
+    const devEl = $("#v-dev");
+    devEl.textContent = ref >= 2 ? `deviation ${dev} counts` : "turn the shaft ~15° to lock";
+    devEl.className = "sub " + (ref >= 2 && dev > 300 ? "bad-text" : "");
+
+    if (hasIndex()) {
+        const found = g("indexed") === 1;
+        const idxEl = $("#v-idx");
+        idxEl.textContent = found ? `${fmt(g("index_angle") * 360, 1)}°` : "Not found";
+        idxEl.className = "value " + (found ? "good-text" : "warn-text");
+        $("#v-idx-sub").textContent = found ? `from the mark · ${fmt(g("index_turns"), 3)} turns` : "turn the shaft up to one turn";
+    }
+
+    // over the last second
+    const n = Math.min(store.len, Math.round(hz));
+    let good = 0;
+    for (let a = 0; a < n; a++) good += store.get(col.flags, a) & 1;
+    const goodEl = $("#v-good");
+    goodEl.textContent = n ? fmt((100 * good) / n, 1) + "%" : "–";
+    goodEl.className = "value " + (n && good / n > 0.99 ? "good-text" : "bad-text");
+
+    const rate = (name) => (n > 1 ? (g(name) - g(name, n - 1)) * hz / (n - 1) : 0);
+    $("#v-ferr").textContent = String(g("frame_error_count"));
+    $("#v-ferr-rate").textContent = fmt(rate("frame_error_count"), 0) + " / s";
+    $("#v-nresp").textContent = String(g("no_response_count"));
+    $("#v-nresp-rate").textContent = fmt(rate("no_response_count"), 0) + " / s";
+}
+
+// ---- drawing
+
+function setupCanvas(canvas) {
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.max(1, Math.round(canvas.clientWidth * dpr));
+    const h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+    return { ctx, w: canvas.clientWidth, h: canvas.clientHeight };
+}
+
+function niceStep(span, count) {
+    const raw = span / Math.max(1, count);
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    for (const m of [1, 2, 2.5, 5, 10]) if (m * mag >= raw) return m * mag;
+    return 10 * mag;
+}
+
+// samples in the window, newest first: calls fn(t, age) with t in seconds (<= 0)
+function forWindow(fn) {
+    const hz = info.update_frequency || 1000;
+    const newest = store.get(col.cycle, 0);
+    for (let a = 0; a < store.len; a++) {
+        const t = (store.get(col.cycle, a) - newest) / hz;
+        if (t < -windowS) break;
+        fn(t, a);
+    }
+}
+
+/*
+ * One chart: x is time (last windowS seconds), y autoscaled unless given.
+ * Each pixel column shows the min..max of its samples, so 1 kHz data stays honest at any zoom.
+ * opts: { field, color, scale, yMin, yMax, minSpan, wrap (y range to break lines across), ticks }
+ */
+function drawChart(canvas, opts) {
+    const { ctx, w, h } = setupCanvas(canvas);
+    const L = 52, R = 8, T = 6, B = 20;
+    const pw = w - L - R, ph = h - T - B;
+    if (pw < 10 || ph < 10 || !store || !store.len) return;
+
+    const f = col[opts.field];
+    const scale = opts.scale || 1;
+    const cols = new Array(Math.ceil(pw) + 1);
+    let lo = Infinity, hi = -Infinity;
+    forWindow((t, a) => {
+        const v = store.get(f, a) * scale;
+        const x = Math.round(((t + windowS) / windowS) * pw);
+        // walking newest to oldest: "last" (newest in the column) is set once, "first" ends up the oldest
+        const c = cols[x] || (cols[x] = { min: v, max: v, first: v, last: v });
+        c.min = Math.min(c.min, v); c.max = Math.max(c.max, v);
+        c.first = v;
+        lo = Math.min(lo, v); hi = Math.max(hi, v);
+    });
+    let yMin = opts.yMin ?? lo, yMax = opts.yMax ?? hi;
+    if (!Number.isFinite(yMin)) return;
+    const minSpan = opts.minSpan ?? 1e-9;
+    if (yMax - yMin < minSpan) { const m = (yMax + yMin) / 2; yMin = m - minSpan / 2; yMax = m + minSpan / 2; }
+    if (opts.yMin === undefined) { const pad = (yMax - yMin) * 0.06; yMin -= pad; yMax += pad; }
+    const Y = (v) => T + ph - ((v - yMin) / (yMax - yMin)) * ph;
+
+    // grid and labels
+    ctx.font = "11px system-ui, sans-serif";
+    ctx.fillStyle = css("--muted");
+    ctx.strokeStyle = css("--grid");
+    ctx.lineWidth = 1;
+    const ystep = opts.ticks || niceStep(yMax - yMin, Math.max(2, Math.floor(ph / 32)));
+    const decimals = Math.max(0, -Math.floor(Math.log10(ystep) + 1e-9));
+    ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    for (let v = Math.ceil(yMin / ystep) * ystep; v <= yMax + 1e-9; v += ystep) {
+        const y = Math.round(Y(v)) + 0.5;
+        ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(L + pw, y); ctx.stroke();
+        ctx.fillText(v.toFixed(Math.min(decimals, 4)), L - 6, y);
+    }
+    const xstep = niceStep(windowS, Math.max(2, Math.floor(pw / 70)));
+    ctx.textAlign = "center"; ctx.textBaseline = "top";
+    for (let s = 0; s <= windowS + 1e-9; s += xstep) {
+        const x = Math.round(L + pw - (s / windowS) * pw) + 0.5;
+        ctx.beginPath(); ctx.moveTo(x, T); ctx.lineTo(x, T + ph); ctx.stroke();
+        ctx.fillText(s === 0 ? "now" : `−${+s.toFixed(2)} s`, x, T + ph + 4);
+    }
+
+    // data
+    ctx.strokeStyle = opts.color;
+    ctx.lineWidth = 1.5;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(L, T, pw, ph); ctx.clip();
+    ctx.beginPath();
+    let prev = null;
+    for (let x = 0; x < cols.length; x++) {
+        const c = cols[x];
+        if (!c) continue;
+        const px = L + x;
+        const jump = prev && opts.wrap && Math.abs(c.first - prev.last) > opts.wrap / 2;
+        if (!prev || jump || x - prev.x > 3) ctx.moveTo(px, Y(c.first));
+        else ctx.lineTo(px, Y(c.first));
+        if (opts.wrap && c.max - c.min > opts.wrap / 2) {
+            ctx.moveTo(px, Y(c.min)); ctx.lineTo(px, Y(c.max));   // wrapped inside this pixel: a band
+            ctx.moveTo(px, Y(c.last));
+        } else {
+            ctx.lineTo(px, Y(c.min)); ctx.lineTo(px, Y(c.max)); ctx.lineTo(px, Y(c.last));
+        }
+        prev = { x, last: c.last };
+    }
+    ctx.stroke();
+    ctx.restore();
+}
+
+function drawHallChart(canvas) {
+    const { ctx, w, h } = setupCanvas(canvas);
+    const L = 52, R = 8, T = 6, B = 20;
+    const pw = w - L - R, ph = h - T - B;
+    if (pw < 10 || ph < 10 || !store || !store.len) return;
+    const f = col.hall;
+    const band = ph / 6;
+    ctx.font = "11px system-ui, sans-serif";
+    ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    const seq = info.schema.hall_sequence || [3, 1, 5, 4, 6, 2];
+    const rowOf = (hv) => seq.indexOf(hv);
+    seq.forEach((hv, i) => {
+        ctx.fillStyle = css("--grid");
+        ctx.fillRect(L, T + i * band + 1, pw, band - 2);
+        ctx.fillStyle = hallColor(hv);
+        ctx.fillText(String(hv), L - 6, T + (i + 0.5) * band);
+    });
+    forWindow((t, a) => {
+        const hv = store.get(f, a);
+        const r = rowOf(hv);
+        const x = L + ((t + windowS) / windowS) * pw;
+        ctx.fillStyle = r >= 0 ? hallColor(hv) : css("--bad");
+        ctx.fillRect(Math.floor(x), r >= 0 ? T + r * band + 1 : T, 1.5, r >= 0 ? band - 2 : ph);
+    });
+    ctx.fillStyle = css("--muted");
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    ctx.fillText("rows in the order hall states follow as turns increase", L + 4, T + ph + 4);
+}
+
+function drawDial(canvas, frac, opts) {
+    const { ctx, w, h } = setupCanvas(canvas);
+    const cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2 - 28;
+    if (r < 10) return;
+    const ang = (f) => -Math.PI / 2 + f * 2 * Math.PI;   // 0 at the top, clockwise
+
+    if (opts.sectors) {
+        for (const s of opts.sectors) {
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.arc(cx, cy, r, ang(s.from), ang(s.to));
+            ctx.closePath();
+            ctx.globalAlpha = s.active ? 0.85 : 0.22;
+            ctx.fillStyle = hallColor(s.hall);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            const mid = ang((s.from + s.to) / 2);
+            ctx.fillStyle = css("--text");
+            ctx.font = "600 13px system-ui, sans-serif";
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText(String(s.hall), cx + Math.cos(mid) * r * 0.78, cy + Math.sin(mid) * r * 0.78);
+        }
+    }
+    ctx.strokeStyle = css("--border");
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2 * Math.PI); ctx.stroke();
+    ctx.fillStyle = css("--muted");
+    ctx.font = "11px system-ui, sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    for (let q = 0; q < 4; q++) {
+        const a = ang(q / 4);
+        ctx.fillText(`${q * 90}°`, cx + Math.cos(a) * (r + 15), cy + Math.sin(a) * (r + 12));
+    }
+    if (frac !== null) {
+        const a = ang(frac);
+        ctx.strokeStyle = css("--text");
+        ctx.lineWidth = 3;
+        ctx.setLineDash(opts.dashed ? [6, 5] : []);
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * r * 0.95, cy + Math.sin(a) * r * 0.95); ctx.stroke();
+        ctx.setLineDash([]);
+    }
+    ctx.fillStyle = css("--panel");
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.3, 0, 2 * Math.PI); ctx.fill();
+    ctx.fillStyle = css("--text");
+    ctx.font = "600 14px system-ui, sans-serif";
+    ctx.fillText(opts.center || "", cx, cy);
+}
+
+function hallSectors(activeHall) {
+    const s = info.schema;
+    if (!s.hall_edges || !s.hall_sequence) return null;
+    const elec = 131072 / (s.pole_pairs || 4);
+    return s.hall_sequence.map((hv, i) => ({
+        hall: hv,
+        from: s.hall_edges[i] / elec,
+        to: i === 5 ? 1 : s.hall_edges[i + 1] / elec,
+        active: hv === activeHall,
+    }));
+}
+
+function render() {
+    requestAnimationFrame(render);
+    if (!dirty || !info || !store || !store.len) return;
+    dirty = false;
+    updateReadouts();
+    const g = (name) => store.get(col[name], 0);
+    const ref = g("hall_reference");
+    const turns = g("total_turns");
+    drawDial($("#dial-elec"), ref > 0 ? g("electrical_angle") : null, {
+        sectors: hallSectors(g("hall")),
+        dashed: ref === 1,
+        center: ref > 0 ? `${(g("electrical_angle") * 360).toFixed(0)}°` : "–",
+    });
+    if (hasIndex() && g("indexed") === 1) {
+        const a = g("index_angle");
+        drawDial($("#dial-shaft"), a, { center: `${(a * 360).toFixed(1)}°` });
+        $("#shaft-caption").textContent = "shaft angle from the index mark";
+    } else {
+        drawDial($("#dial-shaft"), ((turns % 1) + 1) % 1, { center: `${turns.toFixed(2)}` });
+        $("#shaft-caption").textContent = "shaft angle since controller start";
+    }
+    drawChart($("#c-rpm"), { field: "velocity_rpm", color: css("--s-speed"), minSpan: 2 });
+    drawChart($("#c-turns"), { field: "total_turns", color: css("--s-pos"), minSpan: 0.01 });
+    if (!$("#c-elec").closest(".hidden")) {
+        drawChart($("#c-elec"), { field: "electrical_angle", color: css("--s-angle"), scale: 360, yMin: 0, yMax: 360, ticks: 90, wrap: 360 });
+        drawHallChart($("#c-hall"));
+    }
+}
+
+// ---- controls
+
+document.querySelectorAll("[data-window]").forEach((b) => b.addEventListener("click", () => {
+    windowS = parseFloat(b.dataset.window);
+    document.querySelectorAll("[data-window]").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
+    dirty = true;
+}));
+$("#pause").addEventListener("click", () => {
+    paused = !paused;
+    $("#pause").textContent = paused ? "Resume" : "Pause";
+    if (lastStatus) onStatus(lastStatus);
+});
+$("#ring").addEventListener("change", (e) => {
+    params.set("ring", e.target.value);
+    history.replaceState(null, "", "?" + params);
+    connect(e.target.value);
+});
+window.addEventListener("resize", () => { dirty = true; });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { dirty = true; });
+
+let logTimer = null;
+async function refreshLog() {
+    try {
+        const text = await (await fetch("api/log?lines=200", { cache: "no-store" })).text();
+        const el = $("#log");
+        const atEnd = el.scrollTop + el.clientHeight >= el.scrollHeight - 4;
+        el.textContent = text;
+        if (atEnd) el.scrollTop = el.scrollHeight;
+    } catch (e) { /* the status pill already shows the connection */ }
+}
+$("#log-panel").addEventListener("toggle", (e) => {
+    clearInterval(logTimer);
+    if (e.target.open) { refreshLog(); logTimer = setInterval(refreshLog, 2000); }
+});
+
+start();
+requestAnimationFrame(render);
+</script>
+</body>
+</html>

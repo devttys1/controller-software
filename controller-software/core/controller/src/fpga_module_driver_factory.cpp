@@ -4,6 +4,7 @@ uint32_t base_driver::load_config(json* config, std::string module_name, Node_Co
     this->node_core = node_core;
     this->fpga_instr = fpga_instr;
     this->config = config;
+    this->module_name = module_name;
 
     loader.setup(module_name, config, &base_mem);
 

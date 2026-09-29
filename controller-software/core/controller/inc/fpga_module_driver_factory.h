@@ -40,6 +40,8 @@ protected:
 
     uint8_t node_address = 255;   // address of the node in the FPGA
 
+    std::string module_name = "";   // name of the node in the FPGA config, (*config)[module_name]["node"] holds its register map and driver_settings
+
     Node_Core* node_core = nullptr; // pointer to the node core for the FPGA
     fpga_instructions* fpga_instr = nullptr; // pointer to the fpga instructions for the FPGA
     json* config = nullptr; // pointer to the json config for the driver

@@ -5,7 +5,7 @@
 
 #include "kins_6_axis.h"
 
-int main() {
+int main(int argc, char** argv) {
 
     // InverseKinematics ik;
     // ik.benchmark();
@@ -13,7 +13,9 @@ int main() {
 
     Controller controller;
 
-    controller.load_config("controller/config/user/config.json");
+    // optional argument: main config file, e.g. controller/config/spindle_bench/config.json
+    std::string config_file = argc > 1 ? argv[1] : "controller/config/user/config.json";
+    controller.load_config(config_file);
 
     controller.start();
 

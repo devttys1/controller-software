@@ -1,0 +1,206 @@
+{
+    "info": {
+        "date": "2026-09-26",
+        "time": "00:00:00",
+        "fpga_config": "controller/config/fpga_configs/spindle_bench",
+        "write_protected": false
+    },
+    "user_node_vars": {},
+    "node_var_values": {},
+    "networks": {
+        "spindle_orient_bench": {
+            "enable": true,
+            "type": "sync",
+            "timeout_usec": 10000,
+            "update_cycle_trigger_count": 1,
+            "execution_order": 0,
+            "nodes": {
+                "encoder": {
+                    "type": "get_global_variable",
+                    "config": {
+                        "variables": {
+                            "indexed": "yaskawa_encoders:0.indexed",
+                            "index_turns": "yaskawa_encoders:0.index_turns",
+                            "turns": "yaskawa_encoders:0.total_turns",
+                            "velocity": "yaskawa_encoders:0.velocity_rpm"
+                        }
+                    }
+                },
+                "enable": {
+                    "type": "constant",
+                    "config": {
+                        "type": "bool",
+                        "value": true
+                    }
+                },
+                "orient": {
+                    "type": "spindle_orient",
+                    "config": {
+                        "angle_offset_deg": 0.0,
+                        "max_rpm": 120.0,
+                        "accel_rpm_per_s": 600.0,
+                        "search_rpm": 30.0,
+                        "kp_per_s": 20.0,
+                        "speed_loop_lag_s": 0.0,
+                        "tolerance_deg": 0.1,
+                        "settle_s": 0.05,
+                        "still_rpm": 1.0,
+                        "timeout_s": 3600.0,
+                        "search_turns_max": 1.25
+                    }
+                },
+                "oriented_rise": {
+                    "type": "edge_detect",
+                    "config": {
+                        "rising_edge": true
+                    }
+                },
+                "oriented_fall": {
+                    "type": "edge_detect",
+                    "config": {
+                        "falling_edge": true
+                    }
+                },
+                "fault_rise": {
+                    "type": "edge_detect",
+                    "config": {
+                        "rising_edge": true
+                    }
+                },
+                "print_oriented": {
+                    "type": "print",
+                    "config": {
+                        "type": "bool",
+                        "name": "M19 oriented"
+                    }
+                },
+                "print_left": {
+                    "type": "print",
+                    "config": {
+                        "type": "bool",
+                        "name": "M19 oriented"
+                    }
+                },
+                "print_fault": {
+                    "type": "print",
+                    "config": {
+                        "type": "bool",
+                        "name": "M19 fault"
+                    }
+                },
+                "angle": {
+                    "type": "constant",
+                    "config": {
+                        "type": "double",
+                        "value": 90.0
+                    }
+                },
+                "mode": {
+                    "type": "constant",
+                    "config": {
+                        "type": "uint32",
+                        "value": 0
+                    }
+                }
+            },
+            "connections": {
+                "0": {
+                    "src_node": "encoder",
+                    "src_port": "indexed",
+                    "dst_node": "orient",
+                    "dst_port": "indexed"
+                },
+                "1": {
+                    "src_node": "encoder",
+                    "src_port": "index_turns",
+                    "dst_node": "orient",
+                    "dst_port": "index_turns"
+                },
+                "2": {
+                    "src_node": "encoder",
+                    "src_port": "turns",
+                    "dst_node": "orient",
+                    "dst_port": "turns"
+                },
+                "3": {
+                    "src_node": "encoder",
+                    "src_port": "velocity",
+                    "dst_node": "orient",
+                    "dst_port": "velocity"
+                },
+                "4": {
+                    "src_node": "enable",
+                    "src_port": "output",
+                    "dst_node": "orient",
+                    "dst_port": "enable"
+                },
+                "5": {
+                    "src_node": "orient",
+                    "src_port": "is_oriented",
+                    "dst_node": "oriented_rise",
+                    "dst_port": "input"
+                },
+                "6": {
+                    "src_node": "orient",
+                    "src_port": "is_oriented",
+                    "dst_node": "oriented_fall",
+                    "dst_port": "input"
+                },
+                "7": {
+                    "src_node": "orient",
+                    "src_port": "fault",
+                    "dst_node": "fault_rise",
+                    "dst_port": "input"
+                },
+                "8": {
+                    "src_node": "orient",
+                    "src_port": "is_oriented",
+                    "dst_node": "print_oriented",
+                    "dst_port": "input"
+                },
+                "9": {
+                    "src_node": "oriented_rise",
+                    "src_port": "output",
+                    "dst_node": "print_oriented",
+                    "dst_port": "enable"
+                },
+                "10": {
+                    "src_node": "orient",
+                    "src_port": "is_oriented",
+                    "dst_node": "print_left",
+                    "dst_port": "input"
+                },
+                "11": {
+                    "src_node": "oriented_fall",
+                    "src_port": "output",
+                    "dst_node": "print_left",
+                    "dst_port": "enable"
+                },
+                "12": {
+                    "src_node": "orient",
+                    "src_port": "fault",
+                    "dst_node": "print_fault",
+                    "dst_port": "input"
+                },
+                "13": {
+                    "src_node": "fault_rise",
+                    "src_port": "output",
+                    "dst_node": "print_fault",
+                    "dst_port": "enable"
+                },
+                "14": {
+                    "src_node": "angle",
+                    "src_port": "output",
+                    "dst_node": "orient",
+                    "dst_port": "angle"
+                },
+                "15": {
+                    "src_node": "mode",
+                    "src_port": "output",
+                    "dst_node": "orient",
+                    "dst_port": "mode"
+                }
+            }
+        }
+    }
+}

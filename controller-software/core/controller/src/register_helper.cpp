@@ -15,7 +15,9 @@ Register::Register(json* json_data, const std::string register_name, uint16_t re
     pl_data.index = register_index;
     pl_data.absolute_address = parent_absolute_address + pl_data.address_offset + register_index;
 
-    pl_data.bit_mask = (1 << pl_data.width) - 1;    // mask is not shifted to the correct position, it is just the correct width
+    // mask is not shifted to the correct position, it is just the correct width
+    // (1 << 32) is undefined, it only happened to give a full mask on 32 bit ARM
+    pl_data.bit_mask = pl_data.width >= 32 ? 0xFFFFFFFFu : (1u << pl_data.width) - 1;
 
     full_name = prefix_name + "." + pl_data.name + ":" + std::to_string(pl_data.index);
     pl_data.full_name = full_name;

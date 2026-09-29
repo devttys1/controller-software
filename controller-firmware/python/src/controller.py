@@ -936,9 +936,9 @@ class Controller(wiring.Component):
         ]
 
 
-        # yaskawa encoders on ports 1-6
+        # yaskawa encoders on card C ports 0-5, encoder n on port n
         yaskawa_encoders = m.submodules["yaskawa_encoders"]
-        for encoder_index in range(6):
+        for encoder_index in range(yaskawa_encoders.number_of_encoders):
             m.d.comb += yaskawa_encoders.rx[encoder_index].eq(card_C.rs485_rx[encoder_index])
             m.d.comb += card_C.rs485_tx[encoder_index].eq(yaskawa_encoders.tx[encoder_index])
             m.d.comb += card_C.rs485_tx_enable[encoder_index].eq(yaskawa_encoders.tx_enable[encoder_index])
@@ -1083,6 +1083,14 @@ nodes = {
     "em_serial_controller_D" : EM_Serial_Controller(max_packet_size=8, max_number_of_devices=2),
 }
 
+# design variants, selected with the EM_FPGA_DESIGN environment variable (node names and addresses stay the same)
+design = os.environ.get("EM_FPGA_DESIGN", "default")
+if design == "spindle_bench":
+    # one Yaskawa incremental encoder (spindle) on serial card C port 0, with the request preamble proven on those encoders
+    nodes["yaskawa_encoders"] = Yaskawa_Encoders(1, [{"mode": "17bit_incremental"}], preamble_bits=25)
+elif design != "default":
+    raise ValueError(f"unknown EM_FPGA_DESIGN {design!r}")
+
 
 dut = Controller(nodes, sim)
 
@@ -1200,8 +1208,12 @@ if __name__ == "__main__":
 
     if (not sim):  # export
 
+        # the Vivado build below is Windows only, elsewhere just generate controller.v and fpga_config.json
+        # (build those on Linux with controller-firmware/vivado-runtime/remote_build.sh or build_bitstream.sh)
+        run_vivado = os.name == "nt"
+
         # check drive S exists for vivado project
-        if not os.path.exists("S:/Vivado"):
+        if run_vivado and not os.path.exists("S:/Vivado"):
             print(f"{bcolors.FAIL}Drive S subst path does not exist, please run 'create subst path vivado' task from vs code{bcolors.ENDC}")
             exit()
 
@@ -1217,6 +1229,9 @@ if __name__ == "__main__":
         with open(os.path.join(output_dir, "controller.v"), "w") as f:
             f.write(verilog.convert(top, name="Controller"))
 
+        if not run_vivado:
+            print(f"\n{bcolors.OKGREEN}=== {output_dir}/controller.v and fpga_config.json generated ==={bcolors.ENDC}")
+            exit()
 
         print(f"\n\n{bcolors.OKGREEN}=== SYSTHESIZING AND GENERATING BITSTREAM ==={bcolors.ENDC}")
         print(f"{bcolors.WARNING}=== THIS MAY TAKE A WHILE ==={bcolors.ENDC}")

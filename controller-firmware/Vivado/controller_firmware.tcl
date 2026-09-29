@@ -294,6 +294,7 @@ proc cr_bd_controller_firmware { parentCell } {
   xilinx.com:ip:processing_system7:5.5\
   xilinx.com:ip:proc_sys_reset:5.0\
   xilinx.com:ip:clk_wiz:6.0\
+  xilinx.com:ip:xlconcat:2.1\
   "
 
    set list_ips_missing ""
@@ -733,6 +734,15 @@ proc cr_bd_controller_firmware { parentCell } {
   ] $axi_mem_intercon
 
 
+  # Create instance: irq_concat, and set properties
+  # (IRQ_F2P is only sized from IP outputs such as this one; wired straight to Controller_0 it stays 1 bit
+  # wide and "update done" and the other controller interrupts never reach the PS)
+  set irq_concat [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconcat:2.1 irq_concat ]
+  set_property -dict [list \
+    CONFIG.IN0_WIDTH {16} \
+    CONFIG.NUM_PORTS {1} \
+  ] $irq_concat
+
   # Create instance: rst_ps7_0_200M, and set properties
   set rst_ps7_0_200M [ create_bd_cell -type ip -vlnv xilinx.com:ip:proc_sys_reset:5.0 rst_ps7_0_200M ]
 
@@ -797,7 +807,8 @@ proc cr_bd_controller_firmware { parentCell } {
 
   # Create port connections
   connect_bd_net -net Controller_0_buzzer [get_bd_pins Controller_0/buzzer] [get_bd_ports BUZZER]
-  connect_bd_net -net Controller_0_pl_ps_interrupts [get_bd_pins Controller_0/pl_ps_interrupts] [get_bd_pins processing_system7_0/IRQ_F2P]
+  connect_bd_net -net Controller_0_pl_ps_interrupts [get_bd_pins Controller_0/pl_ps_interrupts] [get_bd_pins irq_concat/In0]
+  connect_bd_net -net irq_concat_dout [get_bd_pins irq_concat/dout] [get_bd_pins processing_system7_0/IRQ_F2P]
   connect_bd_net -net Controller_0_slot_A_out [get_bd_pins Controller_0/slot_A_out] [get_bd_ports SLOT_A_OUT]
   connect_bd_net -net Controller_0_slot_A_out_enable [get_bd_pins Controller_0/slot_A_out_enable] [get_bd_ports SLOT_A_OUTEN]
   connect_bd_net -net Controller_0_slot_B_out [get_bd_pins Controller_0/slot_B_out] [get_bd_ports SLOT_B_OUT]

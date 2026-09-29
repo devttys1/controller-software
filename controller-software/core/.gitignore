@@ -6,3 +6,6 @@ zynq_files/controller/web
 # not using this yet, no need to track
 controller/inc/simdjson.h
 controller/src/simdjson.cpp
+# reports and logs from controller-firmware/vivado-runtime/remote_build.sh
+zynq_files/controller/config/fpga_configs/*/build/
+__pycache__/

@@ -414,6 +414,7 @@ uint32_t fpga_instructions::add(copy instruction){
 }
 
 void fpga_instructions::set_update_frequency(uint32_t frequency){
+    update_frequency = frequency;
     full_update_counts = 100e6 / frequency; // DMA cycles in one update period
 }
 

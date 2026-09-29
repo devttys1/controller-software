@@ -106,6 +106,8 @@ class fpga_instructions{
 
         void set_update_frequency(uint32_t frequency);
 
+        uint32_t get_update_frequency() const { return update_frequency; }  // Hz, 0 until the controller has loaded its config
+
         uint32_t compile();
 
         uint32_t save(std::string file_path, std::string fpga_config_file, bool write_protected = false);
@@ -140,6 +142,7 @@ class fpga_instructions{
         uint32_t running_instruction_index = 0;
 
         uint32_t full_update_counts = 0;
+        uint32_t update_frequency = 0;
 
         json* fpga_config = nullptr;
 
