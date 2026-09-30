@@ -19,11 +19,13 @@ Branch: `yaskawa-incremental` (controller-software).
 
 ## Background
 
-The protocol was reverse-engineered and proven on an STM32 in the
-yaskawa-incremental-encoder project (local: `~/git/yaskawa-incremental-encoder`;
-its README is the protocol reference, and its `logic analyser dumps/` are the
-source of the sim fixtures). The ODrive/FFB
-integration of the same motor is in `~/git/yaskawa-ffboard`.
+The protocol was reverse-engineered and proven on an STM32 in
+[yaskawa-odrive](https://github.com/devttys1/yaskawa-odrive); its README's
+[Protocol](https://github.com/devttys1/yaskawa-odrive#protocol) section is the protocol
+reference. The sim fixtures in `controller-firmware/python/sim/data` were decoded from that
+project's logic-analyser captures, which are not published. The OpenFFBoard integration of the
+same motor is on the
+[`f767zi-yaskawa` branch of OpenFFBoard](https://github.com/devttys1/OpenFFBoard/tree/f767zi-yaskawa).
 
 Both encoder types use the same link: 4 Mbit/s Manchester (125 ns symbols) over
 half-duplex RS-485, HDLC framing with bit stuffing, a 112-bit LSB-first payload and
@@ -206,7 +208,7 @@ table that balls B19 and A20 are on pins 22 and 24 of that header.
 
 ### Running it
 
-From `controller-software/core` (details in `build_and_zynq_setup.md`):
+From `controller-software/core` (details in [`build_and_zynq_setup.md`](../controller-software/core/build_and_zynq_setup.md)):
 
 ```sh
 ./zynq.sh deploy
@@ -221,7 +223,7 @@ second (one request per 1 ms cycle), which is what the 2026-09-24 run on the Z-T
 `./zynq.sh start` also starts the monitor web page, `http://em-os.<your local domain>:8080/`.
 It shows speed, position, electrical angle against the hall sectors, the hall state,
 the hall reference and link errors live at 1 kHz, and downloads the last 16 s as CSV
-(see `build_and_zynq_setup.md`).
+(see [`build_and_zynq_setup.md`](../controller-software/core/build_and_zynq_setup.md)).
 
 First run with the encoder wired (2026-09-25, motor at standstill, not yet turned by hand):
 `valid 1`, `no_response 0`, `hall 3`, `unindexed 1` (as expected before the first index),
@@ -374,8 +376,8 @@ two-humped pattern over each 256-count cycle across all power-ups. So 256 counts
 ## Phase 4: spindle commutation## Phase 4: spindle commutation
 
 **Bench result (2026-09-25): the encoder loses its position when it powers down.**
-`single_turn`'s zero moves at every encoder power-up, which the yaskawa-ffboard project
-also measured on 2026-09-24 (about 170 electrical degrees between two power-ups). The
+`single_turn`'s zero moves at every encoder power-up, which the
+[OpenFFBoard integration](https://github.com/devttys1/OpenFFBoard/tree/f767zi-yaskawa) also measured on 2026-09-24 (about 170 electrical degrees between two power-ups). The
 ODrive's `pre_calibrated` offset only looked repeatable because the encoder hadn't lost
 power. A stale offset doesn't fault: it commutates smoothly with the torque reversed. So
 nothing stored against `single_turn` or `total_turns` survives an encoder power cycle:
